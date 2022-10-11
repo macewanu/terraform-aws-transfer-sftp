@@ -1,19 +1,42 @@
+# General variables
+
 variable "domain" {
   type        = string
   description = "Where your files are stored. S3 or EFS"
   default     = "S3"
+
+  validation {
+    condition     = contains(["EFS", "S3"], var.domain)
+    error_message = "Allowed values for domain are \"EFS\" or \"S3\"."
+  }
 }
 
 variable "sftp_users" {
-  type        = any
+  type        = map(object({
+    user_name = string
+    public_key = string
+    posix_profile = optional(object({
+      gid = number
+      uid = number 
+      secondary_gids = optional(list(number))
+    }))
+    home_directory = optional(object({
+      efs_arn = optional(string)
+      efs_id = optional(string)
+      s3_arn = optional(string)
+      s3_id = optional(string)
+      path = optional(string)
+      restricted = optional(bool)
+    }))
+    iam_statements = map(object({
+      efs_arn = optional(string)
+      s3_arn = optional(string)
+      actions = list(string)
+      resources = list(string)
+    }))
+  }))
   default     = {}
-  description = "List of SFTP usernames and public keys. The keys `user_name`, `public_key` are required. The keys `s3_bucket_name` are optional."
-}
-
-variable "restricted_home" {
-  type        = bool
-  description = "Restricts SFTP users so they only have access to their home directories."
-  default     = true
+  description = "Configuration for SFTP users."
 }
 
 variable "force_destroy" {
@@ -22,46 +45,36 @@ variable "force_destroy" {
   default     = false
 }
 
-variable "s3_bucket_name" {
-  type        = string
-  description = "This is the bucket that the SFTP users will use when managing files"
-}
-
-# Variables used when deploying to VPC
-variable "vpc_id" {
-  type        = string
-  description = "VPC ID that the AWS Transfer Server will be deployed to"
-  default     = null
-}
-
-variable "address_allocation_ids" {
-  type        = list(string)
-  description = "A list of address allocation IDs that are required to attach an Elastic IP address to your SFTP server's endpoint. This property can only be used when endpoint_type is set to VPC."
-  default     = []
-}
-
-variable "vpc_security_group_ids" {
-  type        = list(string)
-  description = "A list of security groups IDs that are available to attach to your server's endpoint. If no security groups are specified, the VPC's default security groups are automatically assigned to your endpoint. This property can only be used when endpoint_type is set to VPC."
-  default     = []
-}
-
-variable "subnet_ids" {
-  type        = list(string)
-  description = "A list of subnet IDs that are required to host your SFTP server endpoint in your VPC. This property can only be used when endpoint_type is set to VPC."
-  default     = []
-}
-
-variable "vpc_endpoint_id" {
-  type        = string
-  description = "The ID of the VPC endpoint. This property can only be used when endpoint_type is set to VPC_ENDPOINT"
-  default     = null
-}
-
 variable "security_policy_name" {
   type        = string
-  description = "Specifies the name of the security policy that is attached to the server. Possible values are TransferSecurityPolicy-2018-11, TransferSecurityPolicy-2020-06, and TransferSecurityPolicy-FIPS-2020-06. Default value is: TransferSecurityPolicy-2018-11."
-  default     = "TransferSecurityPolicy-2018-11"
+  description = <<EOF
+Specifies the name of the security policy that is attached to the server.
+
+Possible values are `TransferSecurityPolicy-2022-03`, `TransferSecurityPolicy-2020-06`,
+`TransferSecurityPolicy-2018-11`, and `TransferSecurityPolicy-FIPS-2020-06`. It is
+recommended to use the most recent policy to only allow modern, secure cryptographic
+algorithms.
+
+If not specified, the default value is `TransferSecurityPolicy-2022-03`.
+EOF
+  default     = "TransferSecurityPolicy-2022-03"
+
+  validation {
+    condition = contains(
+      [
+        "TransferSecurityPolicy-2018-11",
+        "TransferSecurityPolicy-2020-06",
+        "TransferSecurityPolicy-2022-03",
+        "TransferSecurityPolicy-FIPS-2020-06"
+      ],
+      var.security_policy_name
+    )
+    error_message = <<EOF
+Allowed values for domain are "TransferSecurityPolicy-2018-11",
+"TransferSecurityPolicy-2020-06", "TransferSecurityPolicy-2022-03", or
+"TransferSecurityPolicy-FIPS-2020-06".
+EOF
+  }
 }
 
 variable "domain_name" {
@@ -80,4 +93,46 @@ variable "eip_enabled" {
   type        = bool
   description = "Whether to provision and attach an Elastic IP to be used as the SFTP endpoint. An EIP will be provisioned per subnet."
   default     = false
+}
+
+# VPC endpoint variables.
+
+variable "vpc_id" {
+  type        = string
+  description = "VPC ID that the AWS Transfer Server will be deployed to"
+  default     = null
+}
+
+variable "address_allocation_ids" {
+  type        = list(string)
+  description = <<EOF
+A list of address allocation IDs that are required to attach an Elastic IP
+address to your SFTP server's endpoint.
+
+This property is only used when `vpc_id` is provided.
+EOF
+  default     = []
+}
+
+variable "vpc_security_group_ids" {
+  type        = list(string)
+  description = <<EOF
+A list of security groups IDs that are available to attach to your server's
+endpoint. If no security groups are specified, the VPC's default security groups
+are automatically assigned to your endpoint.
+
+This property is only used when `vpc_id` is provided.
+EOF
+  default     = []
+}
+
+variable "subnet_ids" {
+  type        = list(string)
+  description = <<EOF
+A list of subnet IDs that are required to host your SFTP server endpoint in your
+VPC.
+
+This property is only used when `vpc_id` is provided.
+EOF
+  default     = []
 }
