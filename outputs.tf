@@ -3,6 +3,11 @@ output "id" {
   value       = module.this.enabled ? module.this.id : null
 }
 
+output "server_id" {
+  description = "Server ID of the created transfer server"
+  value       = module.this.enabled ? join("", aws_transfer_server.default.*.id) : null
+}
+
 output "transfer_endpoint" {
   description = "The endpoint of the Transfer Server"
   value       = module.this.enabled ? join("", aws_transfer_server.default.*.endpoint) : null
