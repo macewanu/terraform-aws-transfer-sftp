@@ -27,3 +27,7 @@ output "efs_access_role_arns" {
   description = "Role ARNs for the EFS access"
   value       = { for user, val in aws_iam_role.efs_access_for_sftp_users : user => val.arn }
 }
+
+output "transfer_server_endpoint_details" {
+  value = module.this.enabled ? aws_transfer_server.default[0].endpoint_details : null
+}
