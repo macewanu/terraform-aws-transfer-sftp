@@ -12,26 +12,28 @@ variable "domain" {
 }
 
 variable "sftp_users" {
-  type        = map(object({
-    user_name = string
+  type = map(object({
+    user_name  = string
     public_key = string
     posix_profile = optional(object({
-      gid = number
-      uid = number 
+      gid            = number
+      uid            = number
       secondary_gids = optional(list(number))
     }))
     home_directory = optional(object({
-      efs_arn = optional(string)
-      efs_id = optional(string)
-      s3_arn = optional(string)
-      s3_id = optional(string)
-      path = optional(string)
-      restricted = optional(bool)
+      create_iam_policy = optional(bool)
+      efs_arn           = optional(string)
+      efs_id            = optional(string)
+      readonly          = optional(bool)
+      s3_arn            = optional(string)
+      s3_id             = optional(string)
+      path              = optional(string)
+      restricted        = optional(bool)
     }))
     iam_statements = map(object({
-      efs_arn = optional(string)
-      s3_arn = optional(string)
-      actions = list(string)
+      efs_arn   = optional(string)
+      s3_arn    = optional(string)
+      actions   = list(string)
       resources = list(string)
     }))
   }))

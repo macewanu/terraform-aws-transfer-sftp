@@ -48,8 +48,8 @@ resource "aws_transfer_user" "efs" {
 
   # Full POSIX identity for the user.
   posix_profile {
-    gid = try(each.value.posix_profile.gid, 65534)
-    uid = try(each.value.posix_profile.uid, 65534)
+    gid            = try(each.value.posix_profile.gid, 65534)
+    uid            = try(each.value.posix_profile.uid, 65534)
     secondary_gids = try(each.value.posix_profile.secondary_gids, [])
   }
 
@@ -60,19 +60,22 @@ resource "aws_transfer_user" "efs" {
 data "aws_iam_policy_document" "efs_access_for_sftp_users" {
   for_each = local.efs_enabled ? local.user_names_map : {}
 
-  # Allow the user write access to their home directory, if one was provided.
   dynamic "statement" {
-    for_each = try(each.value.home_directory != null ? ["true"] : [], [])
+    for_each = (
+      try(each.value.home_directory != null ? true : false) ? (
+        try(each.value.home_directory.create_iam_policy == null || each.value.home_directory.create_iam_policy, true) ? ["true"] : []
+      ) : []
+    )
 
     content {
-      sid = "TransferUserHomeDirectoryPermissions"
+      sid    = "TransferUserHomeDirectoryPermissions"
       effect = "Allow"
 
       actions = [
         "elasticfilesystem:ClientMount",
-        "elasticfilesystem:ClientWrite"
+        try(each.value.home_directory.readonly != null ? each.value.home_directory.readonly : false) ? "" : "elasticfilesystem:ClientWrite"
       ]
-  
+
       resources = [
         format(
           "%s%s/*",
@@ -92,8 +95,8 @@ data "aws_iam_policy_document" "efs_access_for_sftp_users" {
     for_each = each.value.iam_statements != null ? each.value.iam_statements : {}
 
     content {
-      sid = statement.key
-      effect = "Allow"
+      sid     = statement.key
+      effect  = "Allow"
       actions = statement.value.actions
 
       resources = [
@@ -113,14 +116,14 @@ module "efs_iam_label" {
   attributes = ["transfer", "efs", each.value.user_name]
 
   context = module.this.context
-} 
+}
 
 resource "aws_iam_policy" "efs_access_for_sftp_users" {
   for_each = local.efs_enabled ? local.user_names_map : {}
 
   name   = module.efs_iam_label[each.value.user_name].id
   policy = data.aws_iam_policy_document.efs_access_for_sftp_users[each.value.user_name].json
-  
+
   tags = module.this.tags
 }
 

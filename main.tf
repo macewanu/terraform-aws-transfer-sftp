@@ -1,10 +1,10 @@
 locals {
-  enabled = module.this.enabled
-  s3_enabled = local.enabled && var.domain == "S3"
+  enabled     = module.this.enabled
+  s3_enabled  = local.enabled && var.domain == "S3"
   efs_enabled = local.enabled && var.domain == "EFS"
 
   s3_arn_prefix = local.s3_enabled ? "arn:${one(data.aws_partition.default[*].partition)}:s3:::" : ""
-  
+
   is_vpc = var.vpc_id != null
 
   user_names = keys(var.sftp_users)
