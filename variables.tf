@@ -11,6 +11,19 @@ variable "domain" {
   }
 }
 
+variable "iam_policies" {
+  type = map(object({
+    statements = map(object({
+      efs_arn   = optional(string)
+      s3_arn    = optional(string)
+      actions   = list(string)
+      resources = list(string)
+    })) 
+  }))
+  default     = {}
+  description = "IAM policies to create that will be used by `sftp_users`."
+}
+
 variable "sftp_users" {
   type = map(object({
     user_name  = string
@@ -30,12 +43,7 @@ variable "sftp_users" {
       path              = optional(string)
       restricted        = optional(bool)
     }))
-    iam_statements = map(object({
-      efs_arn   = optional(string)
-      s3_arn    = optional(string)
-      actions   = list(string)
-      resources = list(string)
-    }))
+    iam_policies = optional(list(string), [])
   }))
   default     = {}
   description = "Configuration for SFTP users."

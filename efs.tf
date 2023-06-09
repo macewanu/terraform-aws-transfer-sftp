@@ -56,9 +56,32 @@ resource "aws_transfer_user" "efs" {
   tags = module.this.tags
 }
 
+data "aws_iam_policy_document" "default" {
+  for_each = local.efs_enabled ? var.iam_policies : {}
+
+  # For each additional iam_statement provided, create a corresponding statement in the
+  # policy document.
+  dynamic "statement" {
+    for_each = each.value.statements != null ? each.value.statements : {}
+
+    content {
+      sid     = statement.key
+      effect  = "Allow"
+      actions = statement.value.actions
+
+      resources = [
+        for resource in statement.value.resources :
+        format("%s%s", statement.value.efs_arn, resource)
+      ]
+    }
+  }
+}
 
 data "aws_iam_policy_document" "efs_access_for_sftp_users" {
-  for_each = local.efs_enabled ? local.user_names_map : {}
+  for_each = (local.efs_enabled 
+    ? { for user, data in local.user_names_map : user => data if data.home_directory != null && data.home_directory.create_iam_policy }
+    : {}
+  )
 
   dynamic "statement" {
     for_each = (
@@ -88,40 +111,46 @@ data "aws_iam_policy_document" "efs_access_for_sftp_users" {
       ]
     }
   }
-
-  # For each additional iam_statement provided, create a corresponding statement in the
-  # policy document.
-  dynamic "statement" {
-    for_each = each.value.iam_statements != null ? each.value.iam_statements : {}
-
-    content {
-      sid     = statement.key
-      effect  = "Allow"
-      actions = statement.value.actions
-
-      resources = [
-        for resource in statement.value.resources :
-        format("%s%s", statement.value.efs_arn, resource)
-      ]
-    }
-  }
 }
 
 module "efs_iam_label" {
+  source = "cloudposse/label/null"
+  version = "0.25.0"
+  
+  attributes = ["transfer", "efs"]
+
+  context= module.this.context
+}
+
+
+module "efs_iam_user_label" {
   for_each = local.efs_enabled ? local.user_names_map : {}
 
   source  = "cloudposse/label/null"
   version = "0.25.0"
 
-  attributes = ["transfer", "efs", each.value.user_name]
+  attributes = [each.value.user_name]
 
-  context = module.this.context
+  context = module.efs_iam_label.context
+}
+
+
+resource "aws_iam_policy" "default" {
+  for_each = local.efs_enabled ? var.iam_policies : {}
+
+  name   = "${module.efs_iam_label.id}-${each.key}"
+  policy = data.aws_iam_policy_document.default[each.key].json
+
+  tags = module.this.tags
 }
 
 resource "aws_iam_policy" "efs_access_for_sftp_users" {
-  for_each = local.efs_enabled ? local.user_names_map : {}
+  for_each = (local.efs_enabled 
+    ? { for user, data in local.user_names_map : user => data if data.home_directory != null && data.home_directory.create_iam_policy }
+    : {}
+  )
 
-  name   = module.efs_iam_label[each.value.user_name].id
+  name   = module.efs_iam_user_label[each.value.user_name].id
   policy = data.aws_iam_policy_document.efs_access_for_sftp_users[each.value.user_name].json
 
   tags = module.this.tags
@@ -130,10 +159,19 @@ resource "aws_iam_policy" "efs_access_for_sftp_users" {
 resource "aws_iam_role" "efs_access_for_sftp_users" {
   for_each = local.efs_enabled ? local.user_names_map : {}
 
-  name = module.efs_iam_label[each.value.user_name].id
+  name = module.efs_iam_user_label[each.value.user_name].id
 
   assume_role_policy  = join("", data.aws_iam_policy_document.assume_role_policy[*].json)
-  managed_policy_arns = [aws_iam_policy.efs_access_for_sftp_users[each.value.user_name].arn]
+
+  managed_policy_arns = toset(
+    concat(
+      (contains(keys(aws_iam_policy.efs_access_for_sftp_users), each.value.user_name) 
+        ? [aws_iam_policy.efs_access_for_sftp_users[each.value.user_name].arn]
+        : []
+      ),
+      [for policy_name in local.user_names_map[each.value.user_name].iam_policies : aws_iam_policy.default[policy_name].arn]
+    )
+  )
 
   tags = module.this.tags
 }
