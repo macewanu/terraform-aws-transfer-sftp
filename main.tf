@@ -10,6 +10,15 @@ locals {
   user_names = keys(var.sftp_users)
 
   user_names_map = var.sftp_users
+
+  user_ssh_keys_map = merge([
+    for username, user_data in var.sftp_users : {
+      for key_id, key in user_data.public_keys : "${username}+${key_id}" => {
+        username = username
+        key = key
+      }
+    }
+  ]...)
 }
 
 data "aws_partition" "default" {}
@@ -40,12 +49,12 @@ resource "aws_transfer_server" "default" {
 }
 
 resource "aws_transfer_ssh_key" "default" {
-  for_each = local.enabled ? var.sftp_users : {}
+  for_each = local.enabled ? local.user_ssh_keys_map : {}
 
   server_id = join("", aws_transfer_server.default[*].id)
 
-  user_name = each.value.user_name
-  body      = each.value.public_key
+  user_name = each.value.username
+  body      = each.value.key
 
   depends_on = [
     aws_transfer_user.efs,

@@ -27,7 +27,7 @@ variable "iam_policies" {
 variable "sftp_users" {
   type = map(object({
     user_name  = string
-    public_key = string
+    public_keys = optional(map(string), {})
     posix_profile = optional(object({
       gid            = number
       uid            = number
