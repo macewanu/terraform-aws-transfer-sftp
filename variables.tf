@@ -146,3 +146,29 @@ This property is only used when `vpc_id` is provided.
 EOF
   default     = []
 }
+
+variable "route53_zone_id" {
+  type = string
+  default = null
+  description = <<EOF
+    The ID of the Route 53 zone where the Transfer Server is primarily served. This will
+    be used to display the custom endpoint for the Transfer Server (other zones can
+    still be used).
+
+    Both this and `route53_domain_name` must be set for the custom endpoint to be
+    displayed.
+  EOF
+}
+
+variable "route53_domain_name" {
+  type = string
+  default = null
+  description = <<EOF
+    The domain name in the Route 53 zone where the Transfer Server is primarily served.
+    This will e used to display the custom endpoint for the Transfer Server (other domains can
+    still be used).
+
+    Both this and `route53_domain_name` must be set for the custom endpoint to be
+    displayed.
+  EOF
+}

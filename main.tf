@@ -48,6 +48,22 @@ resource "aws_transfer_server" "default" {
   tags = module.this.tags
 }
 
+resource "aws_transfer_tag" "zone_id" {
+  count = local.enabled && var.route53_zone_id != null ? 1 : 0
+
+  resource_arn = aws_transfer_server.default[0].arn
+  key          = "aws:transfer:route53HostedZoneId"
+  value        = "/hostedzone/${var.route53_zone_id}"
+}
+
+resource "aws_transfer_tag" "hostname" {
+  count = local.enabled && var.route53_domain_name != null ? 1 : 0
+
+  resource_arn = aws_transfer_server.default[0].arn
+  key          = "aws:transfer:customHostname"
+  value        = var.route53_domain_name
+}
+
 resource "aws_transfer_ssh_key" "default" {
   for_each = local.enabled ? local.user_ssh_keys_map : {}
 
