@@ -11,9 +11,12 @@ resource "aws_transfer_user" "efs" {
 
   # -- Optional
 
+  # LOGICAL type only used when `home_directory.restricted` is true.
+  home_directory_type = try(each.value.home_directory.restricted ? "LOGICAL" : "PATH", "PATH")
+
   # If at least some home directory configuration was provided, default to /home/${user_name} if
   # no path was given; otherwise, do not specify anything.
-  home_directory = try(
+  home_directory = each.value.home_directory.restricted ? null : try(
     format(
       "/%s%s",
       each.value.home_directory.efs_id,
@@ -42,9 +45,6 @@ resource "aws_transfer_user" "efs" {
       )
     }
   }
-
-  # LOGICAL type only used when `home_directory.restricted` is true.
-  home_directory_type = try(each.value.home_directory.restricted ? "LOGICAL" : "PATH", "PATH")
 
   # Full POSIX identity for the user.
   posix_profile {
