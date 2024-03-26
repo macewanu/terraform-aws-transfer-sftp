@@ -34,6 +34,8 @@ resource "aws_transfer_server" "default" {
   security_policy_name   = var.security_policy_name
   logging_role           = join("", aws_iam_role.logging[*].arn)
 
+  structured_log_destinations = var.transfer_server_log_group_arns
+
   dynamic "endpoint_details" {
     for_each = local.is_vpc ? [1] : []
 
@@ -80,9 +82,7 @@ resource "aws_transfer_ssh_key" "default" {
 
 resource "aws_eip" "sftp" {
   count = local.enabled && var.eip_enabled ? length(var.subnet_ids) : 0
-
-  vpc = local.is_vpc
-
+  domain = "vpc"
   tags = module.this.tags
 }
 

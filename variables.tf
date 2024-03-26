@@ -11,6 +11,12 @@ variable "domain" {
   }
 }
 
+variable "transfer_server_log_group_arns" {
+  type = list(string)
+  default = []
+  description = "ARNs of CloudWatch log groups to ship transfer server logs to."
+}
+
 variable "iam_policies" {
   type = map(object({
     statements = map(object({
@@ -57,34 +63,17 @@ variable "force_destroy" {
 
 variable "security_policy_name" {
   type        = string
-  description = <<EOF
-Specifies the name of the security policy that is attached to the server.
-
-Possible values are `TransferSecurityPolicy-2022-03`, `TransferSecurityPolicy-2020-06`,
-`TransferSecurityPolicy-2018-11`, and `TransferSecurityPolicy-FIPS-2020-06`. It is
-recommended to use the most recent policy to only allow modern, secure cryptographic
-algorithms.
-
-If not specified, the default value is `TransferSecurityPolicy-2022-03`.
-EOF
   default     = "TransferSecurityPolicy-2022-03"
+  description = <<EOF
+    Specifies the name of the security policy that is attached to the server.
 
-  validation {
-    condition = contains(
-      [
-        "TransferSecurityPolicy-2018-11",
-        "TransferSecurityPolicy-2020-06",
-        "TransferSecurityPolicy-2022-03",
-        "TransferSecurityPolicy-FIPS-2020-06"
-      ],
-      var.security_policy_name
-    )
-    error_message = <<EOF
-Allowed values for domain are "TransferSecurityPolicy-2018-11",
-"TransferSecurityPolicy-2020-06", "TransferSecurityPolicy-2022-03", or
-"TransferSecurityPolicy-FIPS-2020-06".
-EOF
-  }
+    Possible values are `TransferSecurityPolicy-2022-03`, `TransferSecurityPolicy-2020-06`,
+    `TransferSecurityPolicy-2018-11`, and `TransferSecurityPolicy-FIPS-2020-06`. It is
+    recommended to use the most recent policy to only allow modern, secure cryptographic
+    algorithms.
+
+    If not specified, the default value is `TransferSecurityPolicy-2022-03`.
+  EOF
 }
 
 variable "domain_name" {
